@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { ArrowUp, ArrowDown, type LucideIcon } from 'lucide-react';
 import { useCountUp } from '../../hooks/useCountUp';
 import { getTrendColor, cn } from '../../utils/helpers';
+import type { DrillDownType } from '../common/DrillDownModal';
 
 interface StatCardProps {
   title: string;
@@ -10,19 +11,26 @@ interface StatCardProps {
   icon: LucideIcon;
   color: string;
   delay?: number;
+  drillDownType?: DrillDownType;
+  onClick?: () => void;
 }
 
-const StatCard = ({ title, value, trend, icon: Icon, color, delay = 0 }: StatCardProps) => {
+const StatCard = ({ title, value, trend, icon: Icon, color, delay = 0, drillDownType, onClick }: StatCardProps) => {
   const { count } = useCountUp(value, 2000);
   const trendColor = getTrendColor(trend);
   const isPositive = trend >= 0;
+  const isClickable = drillDownType && onClick;
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay }}
-      className="stat-card border-gradient"
+      className={cn(
+        "stat-card border-gradient",
+        isClickable && "cursor-pointer hover:scale-[1.02] transition-transform"
+      )}
+      onClick={onClick}
     >
       <div className="absolute top-0 right-0 w-32 h-32 opacity-10">
         <div 
@@ -42,7 +50,10 @@ const StatCard = ({ title, value, trend, icon: Icon, color, delay = 0 }: StatCar
           </div>
         </div>
         
-        <div className="font-display text-3xl font-bold mb-2 text-glow" style={{ color }}>
+        <div 
+          className="font-display text-3xl font-bold mb-2 text-glow"
+          style={{ color }}
+        >
           {count.toLocaleString()}
         </div>
         
@@ -57,6 +68,12 @@ const StatCard = ({ title, value, trend, icon: Icon, color, delay = 0 }: StatCar
           </span>
           <span className="text-xs text-white/40">较上月</span>
         </div>
+        
+        {isClickable && (
+          <div className="absolute bottom-2 right-3 text-xs text-white/30 flex items-center gap-1 opacity-0 hover:opacity-100 transition-opacity">
+            点击查看明细
+          </div>
+        )}
       </div>
     </motion.div>
   );

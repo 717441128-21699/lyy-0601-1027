@@ -1,7 +1,8 @@
+import { useMemo } from 'react';
 import { create } from 'zustand';
 import type { AssetStats, Device, MaintenanceTask, FaultRecord, CostRecord, SupplierData, Filters, ViewType, DeviceType, TimeRange } from '../types';
 import { assetStats as initialStats, devices as initialDevices, maintenanceTasks as initialTasks, faultRecords as initialFaults, costRecords as initialCosts, supplierData as initialSuppliers } from '../data/mockData';
-import { isOverdue, getDaysUntil } from '../utils/helpers';
+import { isOverdue, getDaysUntil, getDateRange, getMonthRange } from '../utils/helpers';
 
 interface CarouselState {
   enabled: boolean;
@@ -132,6 +133,12 @@ export const useFilteredTasks = () => {
         return false;
       }
     }
+    if (filters.timeRange !== 'year') {
+      const { start } = getDateRange(filters.timeRange);
+      if (task.date < start) {
+        return false;
+      }
+    }
     return true;
   });
 };
@@ -148,20 +155,70 @@ export const useFilteredFaults = () => {
         return false;
       }
     }
+    if (filters.timeRange !== 'year') {
+      const { start } = getDateRange(filters.timeRange);
+      if (fault.lastFault < start) {
+        return false;
+      }
+    }
     return true;
   });
 };
 
 export const useFilteredCosts = () => {
   const { costRecords, filters } = useAssetStore();
-  const rangeMap: Record<string, number> = {
-    '7d': 1,
-    '30d': 3,
-    '90d': 6,
-    'year': 12
-  };
-  const months = rangeMap[filters.timeRange] || 6;
-  return costRecords.slice(-months);
+  const months = getMonthRange(filters.timeRange);
+  return costRecords.filter(record => {
+    if (!months.includes(record.month)) {
+      return false;
+    }
+    if (filters.department !== '全部部门' && record.department !== filters.department) {
+      return false;
+    }
+    if (filters.assetTypes.length > 0 && !filters.assetTypes.includes(record.deviceType)) {
+      return false;
+    }
+    return true;
+  });
+};
+
+export const useAggregatedCosts = () => {
+  const filteredCosts = useFilteredCosts();
+  
+  return useMemo(() => {
+    const byMonth: Record<string, CostRecord[]> = {};
+    const byDepartment: Record<string, CostRecord[]> = {};
+    const byType: Record<string, CostRecord[]> = {};
+    
+    filteredCosts.forEach(record => {
+      if (!byMonth[record.month]) byMonth[record.month] = [];
+      byMonth[record.month].push(record);
+      
+      if (!byDepartment[record.department]) byDepartment[record.department] = [];
+      byDepartment[record.department].push(record);
+      
+      if (!byType[record.deviceType]) byType[record.deviceType] = [];
+      byType[record.deviceType].push(record);
+    });
+    
+    const aggregate = (records: CostRecord[]): { total: number; breakdown: { parts: number; labor: number; outsourcing: number } } => {
+      return records.reduce((acc, r) => ({
+        total: acc.total + r.total,
+        breakdown: {
+          parts: acc.breakdown.parts + r.breakdown.parts,
+          labor: acc.breakdown.labor + r.breakdown.labor,
+          outsourcing: acc.breakdown.outsourcing + r.breakdown.outsourcing
+        }
+      }), { total: 0, breakdown: { parts: 0, labor: 0, outsourcing: 0 } });
+    };
+    
+    return {
+      byMonth: Object.entries(byMonth).map(([month, records]) => ({ month, ...aggregate(records) })),
+      byDepartment: Object.entries(byDepartment).map(([department, records]) => ({ department, ...aggregate(records) })),
+      byType: Object.entries(byType).map(([deviceType, records]) => ({ deviceType, ...aggregate(records) })),
+      raw: filteredCosts
+    };
+  }, [filteredCosts]);
 };
 
 export const useFilteredAssetStats = () => {

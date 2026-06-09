@@ -1,15 +1,39 @@
 import { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
-import type { CostRecord } from '../../types';
+import { DEVICE_TYPE_LABELS } from '../../types';
+
+type ViewMode = 'month' | 'department' | 'type';
 
 interface TrendLineChartProps {
-  data: CostRecord[];
+  data: {
+    byMonth: { month: string; total: number; breakdown: { parts: number; labor: number; outsourcing: number } }[];
+    byDepartment: { department: string; total: number; breakdown: { parts: number; labor: number; outsourcing: number } }[];
+    byType: { deviceType: string; total: number; breakdown: { parts: number; labor: number; outsourcing: number } }[];
+  };
+  mode: ViewMode;
 }
 
-const TrendLineChart = ({ data }: TrendLineChartProps) => {
+const TrendLineChart = ({ data, mode }: TrendLineChartProps) => {
   const option = useMemo(() => {
-    const months = data.map(d => d.month.slice(5) + '月');
-    const totals = data.map(d => d.total);
+    let categories: string[] = [];
+    let totals: number[] = [];
+    let unitLabel = '';
+
+    if (mode === 'month') {
+      categories = data.byMonth.map(d => d.month.slice(5) + '月');
+      totals = data.byMonth.map(d => d.total);
+      unitLabel = '月份';
+    } else if (mode === 'department') {
+      categories = data.byDepartment.map(d => d.department);
+      totals = data.byDepartment.map(d => d.total);
+      unitLabel = '部门';
+    } else {
+      categories = data.byType.map(d => DEVICE_TYPE_LABELS[d.deviceType as keyof typeof DEVICE_TYPE_LABELS] || d.deviceType);
+      totals = data.byType.map(d => d.total);
+      unitLabel = '资产类别';
+    }
+
+    const hasData = totals.length > 0 && totals.some(t => t > 0);
 
     return {
       tooltip: {
@@ -22,11 +46,29 @@ const TrendLineChart = ({ data }: TrendLineChartProps) => {
           fontFamily: 'Noto Sans SC'
         },
         formatter: (params: any) => {
+          if (!hasData) return '暂无数据';
           const item = params[0];
-          const record = data[item.dataIndex];
+          let record: any;
+          
+          if (mode === 'month') {
+            record = data.byMonth[item.dataIndex];
+          } else if (mode === 'department') {
+            record = data.byDepartment[item.dataIndex];
+          } else {
+            record = data.byType[item.dataIndex];
+          }
+          
+          if (!record) return '暂无数据';
+          
+          const categoryName = mode === 'type' 
+            ? DEVICE_TYPE_LABELS[(record.deviceType || '') as keyof typeof DEVICE_TYPE_LABELS] || record.deviceType
+            : mode === 'month' 
+            ? record.month.replace('-', '年') + '月'
+            : record.department;
+          
           return `
             <div style="padding: 8px;">
-              <div style="font-weight: bold; margin-bottom: 8px;">${item.name}</div>
+              <div style="font-weight: bold; margin-bottom: 8px;">${categoryName}</div>
               <div style="color: #00d4ff;">总费用: ¥${record.total.toLocaleString()}</div>
               <div style="color: #00c48c;">零配件: ¥${record.breakdown.parts.toLocaleString()}</div>
               <div style="color: #faad14;">人工费: ¥${record.breakdown.labor.toLocaleString()}</div>
@@ -44,7 +86,7 @@ const TrendLineChart = ({ data }: TrendLineChartProps) => {
       },
       xAxis: {
         type: 'category',
-        data: months,
+        data: categories,
         axisLine: {
           lineStyle: {
             color: 'rgba(255, 255, 255, 0.2)'
@@ -52,7 +94,8 @@ const TrendLineChart = ({ data }: TrendLineChartProps) => {
         },
         axisLabel: {
           color: 'rgba(255, 255, 255, 0.6)',
-          fontSize: 11
+          fontSize: 11,
+          rotate: mode !== 'month' ? 15 : 0
         }
       },
       yAxis: {
@@ -74,7 +117,7 @@ const TrendLineChart = ({ data }: TrendLineChartProps) => {
           formatter: (value: number) => (value / 10000).toFixed(1) + '万'
         }
       },
-      series: [
+      series: hasData ? [
         {
           name: '总费用',
           type: 'line',
@@ -115,9 +158,9 @@ const TrendLineChart = ({ data }: TrendLineChartProps) => {
           },
           data: totals
         }
-      ]
+      ] : []
     };
-  }, [data]);
+  }, [data, mode]);
 
   return (
     <ReactECharts

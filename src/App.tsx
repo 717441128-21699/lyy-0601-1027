@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import Header from './components/Layout/Header';
 import ViewTabs from './components/Layout/ViewTabs';
@@ -8,12 +8,15 @@ import FloorMap from './components/FloorMap/FloorMap';
 import Schedule from './components/Schedule/Schedule';
 import FaultRanking from './components/FaultRanking/FaultRanking';
 import CostTrend from './components/CostTrend/CostTrend';
+import DrillDownModal, { type DrillDownType } from './components/common/DrillDownModal';
 import { useAssetStore } from './store/useAssetStore';
 import { useFullscreen } from './hooks/useFullscreen';
 
 function App() {
   const { currentView, isFullscreen: storeFullscreen, toggleFullscreen } = useAssetStore();
-  const { enterFullscreen, exitFullscreen } = useFullscreen();
+  const { isFullscreen, enterFullscreen, exitFullscreen } = useFullscreen();
+  const [drillDownType, setDrillDownType] = useState<DrillDownType | null>(null);
+  const [isDrillDownOpen, setIsDrillDownOpen] = useState(false);
 
   useEffect(() => {
     if (storeFullscreen) {
@@ -23,10 +26,20 @@ function App() {
     }
   }, [storeFullscreen, enterFullscreen, exitFullscreen]);
 
+  const handleDrillDown = (type: DrillDownType) => {
+    setDrillDownType(type);
+    setIsDrillDownOpen(true);
+  };
+
+  const closeDrillDown = () => {
+    setIsDrillDownOpen(false);
+    setTimeout(() => setDrillDownType(null), 200);
+  };
+
   const renderView = () => {
     switch (currentView) {
       case 'overview':
-        return <Overview key="overview" />;
+        return <Overview key="overview" onDrillDown={handleDrillDown} />;
       case 'floorMap':
         return <FloorMap key="floorMap" />;
       case 'schedule':
@@ -36,7 +49,7 @@ function App() {
       case 'costTrend':
         return <CostTrend key="costTrend" />;
       default:
-        return <Overview key="overview" />;
+        return <Overview key="overview" onDrillDown={handleDrillDown} />;
     }
   };
 
@@ -59,6 +72,14 @@ function App() {
           </AnimatePresence>
         </main>
       </div>
+
+      {drillDownType && (
+        <DrillDownModal
+          type={drillDownType}
+          isOpen={isDrillDownOpen}
+          onClose={closeDrillDown}
+        />
+      )}
     </div>
   );
 }

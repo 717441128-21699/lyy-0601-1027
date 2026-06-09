@@ -1,17 +1,43 @@
 import { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
-import type { CostRecord } from '../../types';
+import { DEVICE_TYPE_LABELS } from '../../types';
+
+type ViewMode = 'month' | 'department' | 'type';
 
 interface CostStackChartProps {
-  data: CostRecord[];
+  data: {
+    byMonth: { month: string; total: number; breakdown: { parts: number; labor: number; outsourcing: number } }[];
+    byDepartment: { department: string; total: number; breakdown: { parts: number; labor: number; outsourcing: number } }[];
+    byType: { deviceType: string; total: number; breakdown: { parts: number; labor: number; outsourcing: number } }[];
+  };
+  mode: ViewMode;
 }
 
-const CostStackChart = ({ data }: CostStackChartProps) => {
+const CostStackChart = ({ data, mode }: CostStackChartProps) => {
   const option = useMemo(() => {
-    const months = data.map(d => d.month.slice(5) + '月');
-    const partsData = data.map(d => d.breakdown.parts);
-    const laborData = data.map(d => d.breakdown.labor);
-    const outsourcingData = data.map(d => d.breakdown.outsourcing);
+    let categories: string[] = [];
+    let partsData: number[] = [];
+    let laborData: number[] = [];
+    let outsourcingData: number[] = [];
+
+    if (mode === 'month') {
+      categories = data.byMonth.map(d => d.month.slice(5) + '月');
+      partsData = data.byMonth.map(d => d.breakdown.parts);
+      laborData = data.byMonth.map(d => d.breakdown.labor);
+      outsourcingData = data.byMonth.map(d => d.breakdown.outsourcing);
+    } else if (mode === 'department') {
+      categories = data.byDepartment.map(d => d.department);
+      partsData = data.byDepartment.map(d => d.breakdown.parts);
+      laborData = data.byDepartment.map(d => d.breakdown.labor);
+      outsourcingData = data.byDepartment.map(d => d.breakdown.outsourcing);
+    } else {
+      categories = data.byType.map(d => DEVICE_TYPE_LABELS[d.deviceType as keyof typeof DEVICE_TYPE_LABELS] || d.deviceType);
+      partsData = data.byType.map(d => d.breakdown.parts);
+      laborData = data.byType.map(d => d.breakdown.labor);
+      outsourcingData = data.byType.map(d => d.breakdown.outsourcing);
+    }
+
+    const hasData = partsData.length > 0 && partsData.some(t => t > 0);
 
     return {
       tooltip: {
@@ -47,7 +73,7 @@ const CostStackChart = ({ data }: CostStackChartProps) => {
       },
       xAxis: {
         type: 'category',
-        data: months,
+        data: categories,
         axisLine: {
           lineStyle: {
             color: 'rgba(255, 255, 255, 0.2)'
@@ -55,7 +81,8 @@ const CostStackChart = ({ data }: CostStackChartProps) => {
         },
         axisLabel: {
           color: 'rgba(255, 255, 255, 0.6)',
-          fontSize: 11
+          fontSize: 11,
+          rotate: mode !== 'month' ? 15 : 0
         }
       },
       yAxis: {
@@ -78,12 +105,12 @@ const CostStackChart = ({ data }: CostStackChartProps) => {
           formatter: (value: number) => (value / 10000).toFixed(1) + '万'
         }
       },
-      series: [
+      series: hasData ? [
         {
           name: '零配件',
           type: 'bar',
           stack: 'total',
-          barWidth: '50%',
+          barWidth: mode === 'month' ? '50%' : '60%',
           itemStyle: {
             color: {
               type: 'linear',
@@ -104,7 +131,7 @@ const CostStackChart = ({ data }: CostStackChartProps) => {
           name: '人工费',
           type: 'bar',
           stack: 'total',
-          barWidth: '50%',
+          barWidth: mode === 'month' ? '50%' : '60%',
           itemStyle: {
             color: {
               type: 'linear',
@@ -124,7 +151,7 @@ const CostStackChart = ({ data }: CostStackChartProps) => {
           name: '外包服务',
           type: 'bar',
           stack: 'total',
-          barWidth: '50%',
+          barWidth: mode === 'month' ? '50%' : '60%',
           itemStyle: {
             color: {
               type: 'linear',
@@ -141,9 +168,9 @@ const CostStackChart = ({ data }: CostStackChartProps) => {
           },
           data: outsourcingData
         }
-      ]
+      ] : []
     };
-  }, [data]);
+  }, [data, mode]);
 
   return (
     <ReactECharts

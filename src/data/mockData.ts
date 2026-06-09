@@ -1,4 +1,4 @@
-import type { AssetStats, Device, MaintenanceTask, FaultRecord, CostRecord, SupplierData } from '../types';
+import type { AssetStats, Device, MaintenanceTask, FaultRecord, CostRecord, SupplierData, DeviceType } from '../types';
 
 export const assetStats: AssetStats = {
   total: 1256,
@@ -105,17 +105,64 @@ export const supplierData: SupplierData[] = [
   { name: '索尼维修', responseTime: 72, repairRate: 85, satisfaction: 80, cost: 78, coverage: 75 },
 ];
 
-export const costRecords: CostRecord[] = [
-  { month: '2025-07', total: 45200, breakdown: { parts: 18500, labor: 20200, outsourcing: 6500 } },
-  { month: '2025-08', total: 52800, breakdown: { parts: 22300, labor: 23500, outsourcing: 7000 } },
-  { month: '2025-09', total: 41500, breakdown: { parts: 15200, labor: 19800, outsourcing: 6500 } },
-  { month: '2025-10', total: 58600, breakdown: { parts: 25800, labor: 26300, outsourcing: 6500 } },
-  { month: '2025-11', total: 47200, breakdown: { parts: 19600, labor: 21500, outsourcing: 6100 } },
-  { month: '2025-12', total: 63500, breakdown: { parts: 28500, labor: 27800, outsourcing: 7200 } },
-  { month: '2026-01', total: 51200, breakdown: { parts: 21800, labor: 23200, outsourcing: 6200 } },
-  { month: '2026-02', total: 38900, breakdown: { parts: 14500, labor: 18800, outsourcing: 5600 } },
-  { month: '2026-03', total: 55600, breakdown: { parts: 24200, labor: 24900, outsourcing: 6500 } },
-  { month: '2026-04', total: 49800, breakdown: { parts: 20800, labor: 22500, outsourcing: 6500 } },
-  { month: '2026-05', total: 62100, breakdown: { parts: 27500, labor: 27600, outsourcing: 7000 } },
-  { month: '2026-06', total: 54300, breakdown: { parts: 23800, labor: 24200, outsourcing: 6300 } },
-];
+const generateCostRecords = (): CostRecord[] => {
+  const months = ['2025-07', '2025-08', '2025-09', '2025-10', '2025-11', '2025-12', '2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06'];
+  const departments = ['行政部', '技术部', '财务部', '市场部', '人力资源部'];
+  const deviceTypes: DeviceType[] = ['air_conditioner', 'elevator', 'printer', 'projector'];
+  const deviceNames: Record<string, string[]> = {
+    air_conditioner: ['中央空调A1', '中央空调B2', '中央空调C3', '分体空调D4'],
+    elevator: ['客梯1号', '货梯3号', '客梯2号', '观光梯4号', '消防梯5号'],
+    printer: ['激光打印机A', '彩色打印机B', '多功能一体机C'],
+    projector: ['会议室投影1', '培训室投影2', '展厅投影3']
+  };
+  const departmentsByDevice: Record<string, string> = {
+    '中央空调A1': '行政部',
+    '中央空调B2': '技术部',
+    '中央空调C3': '财务部',
+    '分体空调D4': '市场部',
+    '客梯1号': '行政部',
+    '货梯3号': '技术部',
+    '客梯2号': '市场部',
+    '观光梯4号': '人力资源部',
+    '消防梯5号': '行政部',
+    '激光打印机A': '技术部',
+    '彩色打印机B': '市场部',
+    '多功能一体机C': '财务部',
+    '会议室投影1': '行政部',
+    '培训室投影2': '人力资源部',
+    '展厅投影3': '市场部'
+  };
+  
+  const records: CostRecord[] = [];
+  let id = 1;
+  
+  months.forEach((month, monthIndex) => {
+    Object.entries(deviceNames).forEach(([type, names]) => {
+      names.forEach((deviceName) => {
+        const department = departmentsByDevice[deviceName];
+        const baseAmount = type === 'elevator' ? 8000 : type === 'air_conditioner' ? 3000 : type === 'projector' ? 1500 : 800;
+        const variation = 0.7 + Math.random() * 0.6;
+        const total = Math.round(baseAmount * variation * (1 + monthIndex * 0.03));
+        
+        const parts = Math.round(total * (0.35 + Math.random() * 0.15));
+        const labor = Math.round(total * (0.45 + Math.random() * 0.1));
+        const outsourcing = total - parts - labor;
+        
+        records.push({
+          id: `C${id.toString().padStart(4, '0')}`,
+          month,
+          total,
+          breakdown: { parts, labor, outsourcing },
+          department,
+          deviceType: type as DeviceType,
+          deviceName
+        });
+        id++;
+      });
+    });
+  });
+  
+  return records;
+};
+
+export const costRecords: CostRecord[] = generateCostRecords();

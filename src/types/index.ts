@@ -67,6 +67,7 @@ export interface SupplierData {
 }
 
 export interface CostRecord {
+  id: string;
   month: string;
   total: number;
   breakdown: {
@@ -74,6 +75,9 @@ export interface CostRecord {
     labor: number;
     outsourcing: number;
   };
+  department: string;
+  deviceType: DeviceType;
+  deviceName: string;
 }
 
 export type TimeRange = '7d' | '30d' | '90d' | 'year';
