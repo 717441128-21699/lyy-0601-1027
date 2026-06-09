@@ -1,13 +1,13 @@
 import { motion } from 'framer-motion';
 import { Package, CheckCircle, AlertTriangle, XCircle, Clock } from 'lucide-react';
-import { useAssetStore } from '../../store/useAssetStore';
+import { useFilteredAssetStats } from '../../store/useAssetStore';
 import StatCard from './StatCard';
 import StatusPieChart from './StatusPieChart';
 import DeviceTypeChart from './DeviceTypeChart';
 import QuickStats from './QuickStats';
 
 const Overview = () => {
-  const { assetStats } = useAssetStore();
+  const assetStats = useFilteredAssetStats();
 
   const statCards = [
     { title: '资产总数', value: assetStats.total, trend: assetStats.trends.total, icon: Package, color: '#00d4ff', delay: 0 },

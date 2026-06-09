@@ -1,19 +1,30 @@
 import { useMemo } from 'react';
-import { motion } from 'framer-motion';
-import { useAssetStore, useFilteredDevices } from '../../store/useAssetStore';
-import { STATUS_COLORS, STATUS_LABELS } from '../../types';
+import { motion, AnimatePresence } from 'framer-motion';
+import { AlertTriangle, Clock, User, CheckCircle, XCircle, ChevronRight, AlertCircle, Wrench, Building2 } from 'lucide-react';
+import { useAssetStore, useFilteredDevices, useFilteredTasks } from '../../store/useAssetStore';
+import { STATUS_COLORS, STATUS_LABELS, TASK_STATUS_COLORS, TASK_STATUS_LABELS, DEVICE_TYPE_LABELS } from '../../types';
+import { isOverdue, getDaysUntil, formatDate } from '../../utils/helpers';
 import FloorSelector from './FloorSelector';
 import DevicePoint from './DevicePoint';
 import DeviceModal from './DeviceModal';
 import FloorLegend from './FloorLegend';
+import type { Device, MaintenanceTask } from '../../types';
 
 const FloorMap = () => {
   const { selectedFloor, selectedDevice, setSelectedDevice } = useAssetStore();
   const devices = useFilteredDevices();
+  const tasks = useFilteredTasks();
 
   const floorDevices = useMemo(() => {
     return devices.filter(d => d.floor === selectedFloor);
   }, [devices, selectedFloor]);
+
+  const floorTasks = useMemo(() => {
+    return tasks.filter(task => {
+      const device = devices.find(d => d.name === task.deviceName);
+      return device && device.floor === selectedFloor;
+    });
+  }, [tasks, devices, selectedFloor]);
 
   const statusCounts = useMemo(() => {
     const counts = { normal: 0, fault: 0, pending: 0, scrapped: 0 };
@@ -22,6 +33,28 @@ const FloorMap = () => {
     });
     return counts;
   }, [floorDevices]);
+
+  const faultDevices = useMemo(() => {
+    return floorDevices.filter(d => d.status === 'fault' || d.status === 'pending');
+  }, [floorDevices]);
+
+  const overdueDevices = useMemo(() => {
+    return floorDevices.filter(d => isOverdue(d.nextMaintenance));
+  }, [floorDevices]);
+
+  const upcomingTasks = useMemo(() => {
+    return floorTasks.filter(t => !isOverdue(t.date) && getDaysUntil(t.date) <= 7);
+  }, [floorTasks]);
+
+  const getDeviceTask = (device: Device): MaintenanceTask | undefined => {
+    return floorTasks.find(t => t.deviceName === device.name);
+  };
+
+  const getAssigneeColor = (name: string): string => {
+    const colors = ['#00d4ff', '#00c48c', '#faad14', '#a855f7', '#f97316'];
+    const index = name.charCodeAt(0) % colors.length;
+    return colors[index];
+  };
 
   return (
     <motion.div
@@ -41,7 +74,7 @@ const FloorMap = () => {
           <h3 className="title-section">
             {selectedFloor}层平面图 - 设备分布
             <span className="ml-2 text-sm font-normal text-white/50">
-              共 {floorDevices.length} 台设备
+              共 {floorDevices.length} 台设备 · {floorTasks.length} 项维保任务
             </span>
           </h3>
           
@@ -104,43 +137,46 @@ const FloorMap = () => {
               <text x="50" y="9" textAnchor="middle" fontSize="1.5" fill="rgba(255, 255, 255, 0.5)">电梯厅</text>
             </svg>
 
-            {floorDevices.map((device, index) => (
-              <DevicePoint
-                key={device.id}
-                device={device}
-                onClick={() => setSelectedDevice(device)}
-                style={{ animationDelay: `${index * 0.05}s` }}
-              />
-            ))}
+            <AnimatePresence>
+              {floorDevices.map((device, index) => (
+                <DevicePoint
+                  key={device.id}
+                  device={device}
+                  onClick={() => setSelectedDevice(device)}
+                  style={{ animationDelay: `${index * 0.05}s` }}
+                />
+              ))}
+            </AnimatePresence>
           </div>
         </div>
 
-        <div className="space-y-6">
-          <div className="glass-card p-5">
-            <h3 className="title-section">本层设备统计</h3>
-            <div className="space-y-3">
+        <div className="space-y-4 overflow-y-auto pr-1">
+          <div className="glass-card p-4">
+            <h3 className="title-section flex items-center gap-2 mb-3">
+              <Building2 className="w-4 h-4 text-accent-primary" />
+              本层设备统计
+            </h3>
+            <div className="grid grid-cols-4 gap-2 mb-3">
               {Object.entries(statusCounts).map(([status, count]) => {
                 const labels: Record<string, string> = { normal: '正常', fault: '故障', pending: '待修', scrapped: '报废' };
                 const colors: Record<string, string> = { normal: '#00c48c', fault: '#ff4d4f', pending: '#faad14', scrapped: '#8c8c8c' };
-                const percentage = floorDevices.length > 0 ? (count / floorDevices.length * 100).toFixed(1) : 0;
+                const percentage = floorDevices.length > 0 ? (count / floorDevices.length * 100).toFixed(0) : 0;
                 
                 return (
-                  <div key={status} className="flex items-center gap-3">
+                  <div key={status} className="text-center p-2 rounded-lg bg-white/5">
                     <div 
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: colors[status] }}
-                    />
-                    <span className="text-sm text-white/70 flex-1">{labels[status]}</span>
-                    <span className="font-display text-lg font-bold" style={{ color: colors[status] }}>
+                      className="font-display text-xl font-bold mb-1"
+                      style={{ color: colors[status] }}
+                    >
                       {count}
-                    </span>
-                    <span className="text-xs text-white/40 w-12 text-right">{percentage}%</span>
+                    </div>
+                    <div className="text-xs text-white/50">{labels[status]}</div>
+                    <div className="text-xs text-white/30">{percentage}%</div>
                   </div>
                 );
               })}
             </div>
-            
-            <div className="mt-4 pt-4 border-t border-white/10">
+            <div className="pt-3 border-t border-white/10">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-white/50">设备总数</span>
                 <span className="font-display text-2xl font-bold text-accent-primary">
@@ -150,33 +186,257 @@ const FloorMap = () => {
             </div>
           </div>
 
-          <div className="glass-card p-5">
-            <h3 className="title-section">告警提示</h3>
-            <div className="space-y-3">
-              {floorDevices.filter(d => d.status === 'fault' || d.status === 'pending').slice(0, 5).map(device => (
-                <motion.div
-                  key={device.id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="p-3 rounded-lg bg-white/5 border border-white/5 flex items-center gap-3 cursor-pointer hover:bg-white/10 transition-colors"
-                  onClick={() => setSelectedDevice(device)}
-                >
-                  <div 
-                    className="w-2 h-2 rounded-full animate-pulse"
-                    style={{ backgroundColor: STATUS_COLORS[device.status] }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm text-white/80 truncate">{device.name}</div>
-                    <div className="text-xs text-white/40">{STATUS_LABELS[device.status]}</div>
-                  </div>
-                </motion.div>
-              ))}
-              
-              {floorDevices.filter(d => d.status === 'fault' || d.status === 'pending').length === 0 && (
+          <div className="glass-card p-4">
+            <h3 className="title-section flex items-center gap-2 mb-3">
+              <AlertTriangle className="w-4 h-4 text-status-fault" />
+              故障设备明细
+              <span className="ml-auto text-xs font-normal text-status-fault bg-status-fault/10 px-2 py-0.5 rounded-full">
+                {faultDevices.length}台
+              </span>
+            </h3>
+            
+            <div className="space-y-2 max-h-[180px] overflow-y-auto pr-1">
+              {faultDevices.length > 0 ? (
+                faultDevices.map((device) => {
+                  const task = getDeviceTask(device);
+                  return (
+                    <motion.div
+                      key={device.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="p-3 rounded-lg bg-status-fault/5 border border-status-fault/20 cursor-pointer hover:bg-status-fault/10 transition-colors group"
+                      onClick={() => setSelectedDevice(device)}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-2 h-2 rounded-full animate-pulse"
+                            style={{ backgroundColor: STATUS_COLORS[device.status] }}
+                          />
+                          <span className="text-sm font-medium text-white/90 truncate">{device.name}</span>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-white/30 group-hover:text-white/60 transition-colors" />
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-white/50">{DEVICE_TYPE_LABELS[device.type]}</span>
+                        <span 
+                          className="px-2 py-0.5 rounded text-xs font-medium"
+                          style={{ 
+                            backgroundColor: `${STATUS_COLORS[device.status]}20`,
+                            color: STATUS_COLORS[device.status]
+                          }}
+                        >
+                          {STATUS_LABELS[device.status]}
+                        </span>
+                      </div>
+                      {task && (
+                        <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <div 
+                              className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                              style={{ backgroundColor: getAssigneeColor(task.assignee) }}
+                            >
+                              {task.assigneeAvatar}
+                            </div>
+                            <span className="text-xs text-white/60">{task.assignee}</span>
+                          </div>
+                          <span 
+                            className="text-xs px-2 py-0.5 rounded"
+                            style={{ 
+                              backgroundColor: `${TASK_STATUS_COLORS[task.status]}20`,
+                              color: TASK_STATUS_COLORS[task.status]
+                            }}
+                          >
+                            {TASK_STATUS_LABELS[task.status]}
+                          </span>
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })
+              ) : (
                 <div className="text-center py-6 text-white/30 text-sm">
-                  暂无告警设备
+                  <CheckCircle className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                  本层无故障设备
                 </div>
               )}
+            </div>
+          </div>
+
+          <div className="glass-card p-4">
+            <h3 className="title-section flex items-center gap-2 mb-3">
+              <AlertCircle className="w-4 h-4 text-status-pending" />
+              超期维保设备
+              <span className="ml-auto text-xs font-normal text-status-pending bg-status-pending/10 px-2 py-0.5 rounded-full">
+                {overdueDevices.length}台
+              </span>
+            </h3>
+            
+            <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
+              {overdueDevices.length > 0 ? (
+                overdueDevices.map((device) => {
+                  const overdueDays = Math.abs(getDaysUntil(device.nextMaintenance));
+                  return (
+                    <motion.div
+                      key={device.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="p-3 rounded-lg bg-status-pending/5 border border-status-pending/20 cursor-pointer hover:bg-status-pending/10 transition-colors group"
+                      onClick={() => setSelectedDevice(device)}
+                    >
+                      <div className="flex items-start justify-between mb-1">
+                        <span className="text-sm font-medium text-white/90 truncate">{device.name}</span>
+                        <ChevronRight className="w-4 h-4 text-white/30 group-hover:text-white/60 transition-colors flex-shrink-0" />
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-white/50">下次维保: {formatDate(device.nextMaintenance)}</span>
+                        <span className="text-status-fault font-medium">
+                          超期 {overdueDays} 天
+                        </span>
+                      </div>
+                    </motion.div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-6 text-white/30 text-sm">
+                  <CheckCircle className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                  本层无超期设备
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="glass-card p-4">
+            <h3 className="title-section flex items-center gap-2 mb-3">
+              <Wrench className="w-4 h-4 text-accent-primary" />
+              近期维保任务
+              <span className="ml-auto text-xs font-normal text-accent-primary bg-accent-primary/10 px-2 py-0.5 rounded-full">
+                {upcomingTasks.length}项
+              </span>
+            </h3>
+            
+            <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
+              {upcomingTasks.length > 0 ? (
+                upcomingTasks.map((task) => {
+                  const daysUntil = getDaysUntil(task.date);
+                  return (
+                    <motion.div
+                      key={task.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                    >
+                      <div className="flex items-start justify-between mb-1">
+                        <span className="text-sm font-medium text-white/90 truncate">{task.deviceName}</span>
+                        <span 
+                          className="text-xs px-2 py-0.5 rounded flex-shrink-0 ml-2"
+                          style={{ 
+                            backgroundColor: `${TASK_STATUS_COLORS[task.status]}20`,
+                            color: TASK_STATUS_COLORS[task.status]
+                          }}
+                        >
+                          {TASK_STATUS_LABELS[task.status]}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                            style={{ backgroundColor: getAssigneeColor(task.assignee) }}
+                          >
+                            {task.assigneeAvatar}
+                          </div>
+                          <span className="text-white/60">{task.assignee}</span>
+                        </div>
+                        <span className="text-white/50">
+                          {daysUntil === 0 ? '今天' : daysUntil === 1 ? '明天' : `${daysUntil}天后`}
+                        </span>
+                      </div>
+                      <div className="mt-2">
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span className="text-white/40">{task.type}</span>
+                          <span className="text-white/40">{task.progress}%</span>
+                        </div>
+                        <div className="h-1 bg-white/10 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{ 
+                              width: `${task.progress}%`,
+                              backgroundColor: TASK_STATUS_COLORS[task.status]
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-6 text-white/30 text-sm">
+                  <Clock className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                  近期无维保任务
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="glass-card p-4">
+            <h3 className="title-section flex items-center gap-2 mb-3">
+              <User className="w-4 h-4 text-accent-secondary" />
+              负责人工作状态
+            </h3>
+            
+            <div className="space-y-2">
+              {['张工', '李工', '王工', '赵工'].map((name) => {
+                const personTasks = floorTasks.filter(t => t.assignee === name);
+                const completed = personTasks.filter(t => t.status === 'completed').length;
+                const inProgress = personTasks.filter(t => t.status === 'in_progress').length;
+                const pending = personTasks.filter(t => t.status === 'pending').length;
+                const workload = personTasks.length;
+                
+                return (
+                  <div key={name} className="p-2 rounded-lg bg-white/5">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white"
+                          style={{ backgroundColor: getAssigneeColor(name) }}
+                        >
+                          {name.charAt(0)}
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-white/80">{name}</div>
+                          <div className="text-xs text-white/40">{workload} 项任务</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {inProgress > 0 && (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-accent-primary/20 text-accent-primary">
+                            进行中 {inProgress}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex gap-1">
+                      <div 
+                        className="h-1.5 rounded-full bg-status-normal flex-1"
+                        style={{ width: `${workload > 0 ? (completed / workload) * 100 : 0}%` }}
+                      />
+                      <div 
+                        className="h-1.5 rounded-full bg-accent-primary flex-1"
+                        style={{ width: `${workload > 0 ? (inProgress / workload) * 100 : 0}%` }}
+                      />
+                      <div 
+                        className="h-1.5 rounded-full bg-status-pending flex-1"
+                        style={{ width: `${workload > 0 ? (pending / workload) * 100 : 0}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-xs mt-1 text-white/40">
+                      <span>已完成 {completed}</span>
+                      <span>待处理 {pending}</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

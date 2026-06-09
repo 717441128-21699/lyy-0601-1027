@@ -3,6 +3,7 @@ import { Activity, Database, RefreshCw, Monitor } from 'lucide-react';
 import { useAssetStore } from '../../store/useAssetStore';
 import { useFullscreen } from '../../hooks/useFullscreen';
 import { cn } from '../../utils/helpers';
+import CarouselControl from './CarouselControl';
 
 const Header = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -56,6 +57,8 @@ const Header = () => {
             <span className="w-2 h-2 rounded-full bg-current animate-pulse" />
             {isDemoDataLoaded ? "数据已加载" : "数据未加载"}
           </div>
+
+          <CarouselControl />
         </div>
 
         <div className="flex items-center gap-6">
