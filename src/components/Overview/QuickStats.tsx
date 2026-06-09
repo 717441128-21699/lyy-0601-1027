@@ -1,10 +1,15 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Wrench, Clock, DollarSign, AlertCircle, TrendingUp, Users } from 'lucide-react';
+import { Wrench, Clock, DollarSign, AlertCircle, TrendingUp, Users, ChevronRight } from 'lucide-react';
 import { useAssetStore, useFilteredTasks, useFilteredFaults, useFilteredCosts, useUpcomingMaintenance } from '../../store/useAssetStore';
 import { formatCurrency } from '../../utils/helpers';
+import type { DrillDownType } from '../common/DrillDownModal';
 
-const QuickStats = () => {
+interface QuickStatsProps {
+  onDrillDown: (type: DrillDownType) => void;
+}
+
+const QuickStats = ({ onDrillDown }: QuickStatsProps) => {
   const { supplierData } = useAssetStore();
   const tasks = useFilteredTasks();
   const faults = useFilteredFaults();
@@ -31,14 +36,14 @@ const QuickStats = () => {
     const completionRate = tasks.length > 0 ? Math.round((completedTasks.length / tasks.length) * 100) : 0;
 
     return [
-      { icon: Wrench, label: '今日维保任务', value: todayTasks.length, color: '#00d4ff', suffix: '项' },
-      { icon: TrendingUp, label: '完成率', value: completionRate, color: '#00c48c', suffix: '%' },
-      { icon: Clock, label: '进行中', value: inProgressTasks.length, color: '#faad14', suffix: '项' },
-      { icon: AlertCircle, label: '待处理', value: pendingTasks.length, color: '#ff4d4f', suffix: '项' },
-      { icon: DollarSign, label: '月均费用', value: Math.round(avgMonthlyCost / 1000), color: '#a855f7', suffix: 'k' },
-      { icon: Users, label: '供应商响应', value: Math.round(avgSupplierResponse), color: '#06b6d4', suffix: '分' },
-      { icon: Clock, label: '平均修复时长', value: avgRepairTime.toFixed(1), color: '#f97316', suffix: 'h' },
-      { icon: AlertCircle, label: '累计故障', value: totalFaults, color: '#ef4444', suffix: '次' },
+      { icon: Wrench, label: '今日维保任务', value: todayTasks.length, color: '#00d4ff', suffix: '项', drillDownType: undefined },
+      { icon: TrendingUp, label: '完成率', value: completionRate, color: '#00c48c', suffix: '%', drillDownType: undefined },
+      { icon: Clock, label: '进行中', value: inProgressTasks.length, color: '#faad14', suffix: '项', drillDownType: undefined },
+      { icon: AlertCircle, label: '待处理', value: pendingTasks.length, color: '#ff4d4f', suffix: '项', drillDownType: undefined },
+      { icon: DollarSign, label: '月均费用', value: Math.round(avgMonthlyCost / 1000), color: '#a855f7', suffix: 'k', drillDownType: undefined },
+      { icon: Users, label: '供应商响应', value: Math.round(avgSupplierResponse), color: '#06b6d4', suffix: '分', drillDownType: undefined },
+      { icon: Clock, label: '平均修复时长', value: avgRepairTime.toFixed(1), color: '#f97316', suffix: 'h', drillDownType: undefined },
+      { icon: AlertCircle, label: '累计故障', value: totalFaults, color: '#ef4444', suffix: '次', drillDownType: 'totalFaults' as DrillDownType },
     ];
   }, [tasks, costRecords, faults, supplierData]);
 
@@ -49,13 +54,15 @@ const QuickStats = () => {
       <div className="grid grid-cols-2 gap-3">
         {stats.map((stat, index) => {
           const Icon = stat.icon;
+          const isClickable = stat.drillDownType && onDrillDown;
           return (
             <motion.div
               key={stat.label}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.3, delay: 0.1 * index }}
-              className="p-3 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-all cursor-default"
+              className={`p-3 rounded-lg bg-white/5 border border-white/5 transition-all ${isClickable ? 'cursor-pointer hover:bg-white/10 hover:scale-[1.02] hover:border-accent-primary/30' : 'cursor-default hover:bg-white/10'}`}
+              onClick={isClickable ? () => onDrillDown(stat.drillDownType!) : undefined}
             >
               <div className="flex items-center gap-2 mb-1.5">
                 <div 
@@ -65,6 +72,9 @@ const QuickStats = () => {
                   <Icon className="w-3.5 h-3.5" style={{ color: stat.color }} />
                 </div>
                 <span className="text-xs text-white/50 truncate">{stat.label}</span>
+                {isClickable && (
+                  <ChevronRight className="w-3 h-3 text-white/30 ml-auto" />
+                )}
               </div>
               <div className="flex items-baseline gap-1">
                 <span 
@@ -75,6 +85,9 @@ const QuickStats = () => {
                 </span>
                 <span className="text-xs text-white/40">{stat.suffix}</span>
               </div>
+              {isClickable && (
+                <div className="text-[10px] text-white/30 mt-1">点击查看明细</div>
+              )}
             </motion.div>
           );
         })}

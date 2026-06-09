@@ -128,7 +128,7 @@ export const useFilteredTasks = () => {
       return false;
     }
     if (filters.department !== '全部部门') {
-      const device = devices.find(d => d.name === task.deviceName);
+      const device = devices.find(d => d.id === task.deviceId);
       if (device && device.department !== filters.department) {
         return false;
       }
@@ -150,7 +150,7 @@ export const useFilteredFaults = () => {
       return false;
     }
     if (filters.department !== '全部部门') {
-      const device = devices.find(d => d.name === fault.deviceName);
+      const device = devices.find(d => d.id === fault.deviceId);
       if (device && device.department !== filters.department) {
         return false;
       }

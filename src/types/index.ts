@@ -36,8 +36,10 @@ export type TaskStatus = 'pending' | 'in_progress' | 'completed';
 export interface MaintenanceTask {
   id: string;
   date: string;
+  deviceId: string;
   deviceName: string;
   deviceType: DeviceType;
+  deviceFloor: number;
   type: string;
   assignee: string;
   assigneeAvatar: string;
@@ -48,8 +50,10 @@ export interface MaintenanceTask {
 
 export interface FaultRecord {
   id: string;
+  deviceId: string;
   deviceName: string;
   deviceType: DeviceType;
+  deviceFloor: number;
   faultCount: number;
   avgRepairTime: number;
   lastFault: string;

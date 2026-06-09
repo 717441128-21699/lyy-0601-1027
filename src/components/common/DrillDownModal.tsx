@@ -55,7 +55,7 @@ const DrillDownModal = ({ type, isOpen, onClose }: DrillDownModalProps) => {
   const Icon = config.icon;
 
   const getDeviceTask = (device: Device): MaintenanceTask | undefined => {
-    return tasks.find(t => t.deviceName === device.name);
+    return tasks.find(t => t.deviceId === device.id);
   };
 
   const renderDeviceRow = (device: Device) => {
@@ -114,7 +114,7 @@ const DrillDownModal = ({ type, isOpen, onClose }: DrillDownModalProps) => {
   };
 
   const renderTaskRow = (task: MaintenanceTask) => {
-    const device = devices.find(d => d.name === task.deviceName);
+    const device = devices.find(d => d.id === task.deviceId);
     return (
       <motion.tr
         key={task.id}
@@ -159,7 +159,7 @@ const DrillDownModal = ({ type, isOpen, onClose }: DrillDownModalProps) => {
   };
 
   const renderFaultRow = (fault: FaultRecord) => {
-    const device = devices.find(d => d.name === fault.deviceName);
+    const device = devices.find(d => d.id === fault.deviceId);
     return (
       <motion.tr
         key={fault.id}

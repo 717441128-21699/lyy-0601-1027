@@ -48,7 +48,7 @@ const Overview = ({ onDrillDown }: OverviewProps) => {
           <DeviceTypeChart />
         </div>
         <div className="col-span-1">
-          <QuickStats />
+          <QuickStats onDrillDown={onDrillDown} />
         </div>
       </div>
     </motion.div>
