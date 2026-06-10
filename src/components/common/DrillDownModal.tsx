@@ -51,6 +51,20 @@ const DrillDownModal = ({ type, isOpen, onClose }: DrillDownModalProps) => {
     }
   }, [type, devices, tasks, faults]);
 
+  const summaryStats = useMemo(() => {
+    if (type === 'totalFaults') {
+      const totalFaultCount = data.faults.reduce((sum, f) => sum + f.faultCount, 0);
+      const totalCost = data.faults.reduce((sum, f) => sum + f.cost, 0);
+      return {
+        deviceCount: data.faults.length,
+        totalFaultCount,
+        totalCost,
+        showSummary: true
+      };
+    }
+    return { deviceCount: 0, totalFaultCount: 0, totalCost: 0, showSummary: false };
+  }, [type, data.faults]);
+
   const config = typeConfig[type];
   const Icon = config.icon;
 
@@ -219,7 +233,24 @@ const DrillDownModal = ({ type, isOpen, onClose }: DrillDownModalProps) => {
                   <Icon className="w-5 h-5" style={{ color: config.color }} />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-white">{config.title}</h2>
+                  <h2 className="text-xl font-bold text-white flex items-center gap-3">
+                    {config.title}
+                    {summaryStats.showSummary && (
+                      <span className="text-sm font-normal text-white/50 flex items-center gap-3">
+                        <span className="flex items-center gap-1">
+                          <span className="text-white/30">设备数:</span>
+                          <span className="font-display font-bold text-accent-primary">{summaryStats.deviceCount}</span>
+                          <span className="text-white/30">台</span>
+                        </span>
+                        <span className="w-px h-4 bg-white/20" />
+                        <span className="flex items-center gap-1">
+                          <span className="text-white/30">累计故障:</span>
+                          <span className="font-display font-bold text-status-fault">{summaryStats.totalFaultCount}</span>
+                          <span className="text-white/30">次</span>
+                        </span>
+                      </span>
+                    )}
+                  </h2>
                   <p className="text-xs text-white/50">
                     部门: {filters.department} · 
                     资产类别: {filters.assetTypes.length > 0 ? filters.assetTypes.map(t => DEVICE_TYPE_LABELS[t]).join(', ') : '全部'} · 
@@ -304,11 +335,25 @@ const DrillDownModal = ({ type, isOpen, onClose }: DrillDownModalProps) => {
             )}
 
             <div className="flex items-center justify-between px-6 py-3 border-t border-white/10 bg-bg-secondary/50">
-              <div className="text-sm text-white/50">
-                共 <span className="font-display font-bold text-white/80">
-                  {type === 'totalFaults' ? data.faults.length : type === 'tasks' ? data.tasks.length : data.devices.length}
-                </span> 条记录
-              </div>
+              {summaryStats.showSummary ? (
+                <div className="text-sm text-white/50 flex items-center gap-6">
+                  <span>
+                    涉及设备: <span className="font-display font-bold text-accent-primary">{summaryStats.deviceCount}</span> 台
+                  </span>
+                  <span>
+                    累计故障: <span className="font-display font-bold text-status-fault">{summaryStats.totalFaultCount}</span> 次
+                  </span>
+                  <span>
+                    累计成本: <span className="font-display font-bold text-accent-secondary">¥{summaryStats.totalCost.toLocaleString()}</span>
+                  </span>
+                </div>
+              ) : (
+                <div className="text-sm text-white/50">
+                  共 <span className="font-display font-bold text-white/80">
+                    {type === 'totalFaults' ? data.faults.length : type === 'tasks' ? data.tasks.length : data.devices.length}
+                  </span> 条记录
+                </div>
+              )}
               <button
                 onClick={onClose}
                 className="btn-secondary px-4 py-2 text-sm"

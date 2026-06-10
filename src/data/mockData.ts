@@ -1,4 +1,4 @@
-import type { AssetStats, Device, MaintenanceTask, FaultRecord, CostRecord, SupplierData, DeviceType } from '../types';
+import type { AssetStats, Device, MaintenanceTask, FaultRecord, CostRecord, SupplierData, DeviceType, FaultHistoryItem, FaultStatus } from '../types';
 
 export const assetStats: AssetStats = {
   total: 1256,
@@ -128,6 +128,59 @@ const generateMaintenanceTasks = (devices: Device[]): MaintenanceTask[] => {
 
 export const maintenanceTasks: MaintenanceTask[] = generateMaintenanceTasks(devices);
 
+const generateFaultHistory = (device: Device, count: number, supplier: string): FaultHistoryItem[] => {
+  const history: FaultHistoryItem[] = [];
+  const assignees = ['张工', '李工', '王工', '赵工'];
+  const faultDescriptions = [
+    '设备无法启动，电源指示灯不亮',
+    '运行时有异常噪音，振动明显',
+    '显示面板报错，错误代码E101',
+    '制冷/制热效果下降，温度控制不准',
+    '按键失灵，操作无响应',
+    '连接故障，无法与中控系统通信',
+    '耗材用尽，需要更换',
+    '传感器数据异常，读数不准'
+  ];
+  const resolutions = [
+    '更换主板组件，系统恢复正常',
+    '清洁散热风扇，添加润滑油',
+    '更换损坏传感器，重新校准',
+    '重新安装驱动程序，配置参数',
+    '更换滤芯/耗材，运行自检程序',
+    '修复接线端子，重新连接线缆',
+    '升级固件版本，优化运行参数',
+    '更换易损件，进行全面保养'
+  ];
+  const statuses: FaultStatus[] = ['reported', 'in_progress', 'resolved', 'closed'];
+  
+  for (let i = 0; i < count; i++) {
+    const daysAgo = Math.floor(Math.random() * 90) + 5;
+    const date = new Date('2026-06-10');
+    date.setDate(date.getDate() - daysAgo);
+    const dateStr = date.toISOString().split('T')[0];
+    
+    const status = i === 0 && device.status === 'fault' ? 'in_progress' : statuses[Math.floor(Math.random() * 2) + 2];
+    const responseTime = Math.round((Math.random() * 8 + 1) * 10) / 10;
+    const repairTime = Math.round((Math.random() * 24 + 2) * 10) / 10;
+    const cost = Math.floor(Math.random() * 8000) + 1000;
+    
+    history.push({
+      id: `${device.id}-H${String(i + 1).padStart(2, '0')}`,
+      date: dateStr,
+      description: faultDescriptions[Math.floor(Math.random() * faultDescriptions.length)],
+      status,
+      assignee: assignees[Math.floor(Math.random() * assignees.length)],
+      supplier,
+      responseTime,
+      repairTime,
+      cost,
+      resolution: resolutions[Math.floor(Math.random() * resolutions.length)]
+    });
+  }
+  
+  return history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+};
+
 const generateFaultRecords = (devices: Device[]): FaultRecord[] => {
   const faults: FaultRecord[] = [];
   const suppliers = ['格力售后', '日立电梯', '惠普金牌', '索尼维修', '美的售后', '东芝电梯', '佳能快修', '爱普生服务'];
@@ -135,17 +188,27 @@ const generateFaultRecords = (devices: Device[]): FaultRecord[] => {
   const faultDevices = devices.filter(d => d.status === 'fault' || d.status === 'pending');
   
   faultDevices.forEach((device, index) => {
+    const faultCount = Math.floor(Math.random() * 12) + 3;
+    const supplier = suppliers[index % suppliers.length];
+    const history = generateFaultHistory(device, faultCount, supplier);
+    const totalCost = history.reduce((sum, h) => sum + h.cost, 0);
+    const avgRepairTime = history.length > 0 
+      ? Math.round(history.reduce((sum, h) => sum + h.repairTime, 0) / history.length * 10) / 10 
+      : 0;
+    const lastFault = history.length > 0 ? history[0].date : '2026-05-15';
+    
     faults.push({
       id: `F${String(index + 1).padStart(3, '0')}`,
       deviceId: device.id,
       deviceName: device.name,
       deviceType: device.type,
       deviceFloor: device.floor,
-      faultCount: Math.floor(Math.random() * 12) + 3,
-      avgRepairTime: Math.round((Math.random() * 10 + 1.5) * 10) / 10,
-      lastFault: `2026-05-${String(Math.floor(Math.random() * 25) + 10).padStart(2, '0')}`,
-      supplier: suppliers[index % suppliers.length],
-      cost: Math.floor(Math.random() * 40000) + 8000
+      faultCount,
+      avgRepairTime,
+      lastFault,
+      supplier,
+      cost: totalCost,
+      history
     });
   });
   
@@ -184,6 +247,7 @@ const generateCostRecords = (devices: Device[]): CostRecord[] => {
         breakdown: { parts, labor, outsourcing },
         department: device.department,
         deviceType: device.type,
+        deviceId: device.id,
         deviceName: device.name
       });
       id++;

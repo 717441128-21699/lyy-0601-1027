@@ -48,6 +48,21 @@ export interface MaintenanceTask {
   priority: 'low' | 'medium' | 'high';
 }
 
+export type FaultStatus = 'reported' | 'in_progress' | 'resolved' | 'closed';
+
+export interface FaultHistoryItem {
+  id: string;
+  date: string;
+  description: string;
+  status: FaultStatus;
+  assignee: string;
+  supplier: string;
+  responseTime: number;
+  repairTime: number;
+  cost: number;
+  resolution: string;
+}
+
 export interface FaultRecord {
   id: string;
   deviceId: string;
@@ -59,6 +74,7 @@ export interface FaultRecord {
   lastFault: string;
   supplier: string;
   cost: number;
+  history: FaultHistoryItem[];
 }
 
 export interface SupplierData {
@@ -81,6 +97,7 @@ export interface CostRecord {
   };
   department: string;
   deviceType: DeviceType;
+  deviceId: string;
   deviceName: string;
 }
 
@@ -128,4 +145,18 @@ export const TASK_STATUS_COLORS: Record<TaskStatus, string> = {
   pending: '#faad14',
   in_progress: '#00d4ff',
   completed: '#00c48c'
+};
+
+export const FAULT_STATUS_LABELS: Record<FaultStatus, string> = {
+  reported: '已上报',
+  in_progress: '处理中',
+  resolved: '已解决',
+  closed: '已关闭'
+};
+
+export const FAULT_STATUS_COLORS: Record<FaultStatus, string> = {
+  reported: '#ff4d4f',
+  in_progress: '#faad14',
+  resolved: '#00c48c',
+  closed: '#8c8c8c'
 };

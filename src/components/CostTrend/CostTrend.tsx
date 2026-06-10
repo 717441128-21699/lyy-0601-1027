@@ -1,17 +1,41 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, DollarSign, TrendingDown, PieChart, BarChart3, Calendar, CalendarDays, Building2, Layers, Inbox } from 'lucide-react';
+import { TrendingUp, DollarSign, TrendingDown, PieChart, BarChart3, Calendar, CalendarDays, Building2, Layers, Inbox, ChevronRight } from 'lucide-react';
 import { useAggregatedCosts } from '../../store/useAssetStore';
 import TrendLineChart from './TrendLineChart';
 import CostStackChart from './CostStackChart';
+import CostDrillDownModal from './CostDrillDownModal';
 import { formatCurrency } from '../../utils/helpers';
 import { DEVICE_TYPE_LABELS } from '../../types';
 
 type ViewMode = 'month' | 'department' | 'type';
 
+interface DrillDownState {
+  isOpen: boolean;
+  filterType: 'month' | 'department' | 'type';
+  filterValue: string;
+}
+
 const CostTrend = () => {
   const aggregated = useAggregatedCosts();
   const [viewMode, setViewMode] = useState<ViewMode>('month');
+  const [drillDown, setDrillDown] = useState<DrillDownState>({
+    isOpen: false,
+    filterType: 'month',
+    filterValue: ''
+  });
+
+  const handleDrillDown = (filterType: 'month' | 'department' | 'type', filterValue: string) => {
+    setDrillDown({
+      isOpen: true,
+      filterType,
+      filterValue
+    });
+  };
+
+  const closeDrillDown = () => {
+    setDrillDown(prev => ({ ...prev, isOpen: false }));
+  };
 
   const stats = useMemo(() => {
     let data: { total: number; breakdown: { parts: number; labor: number; outsourcing: number } }[] = [];
@@ -54,16 +78,22 @@ const CostTrend = () => {
     if (viewMode === 'month') {
       return aggregated.byMonth.map(item => ({
         label: item.month.replace('-', '年') + '月',
+        rawValue: item.month,
+        filterType: 'month' as const,
         ...item
       }));
     } else if (viewMode === 'department') {
       return aggregated.byDepartment.map(item => ({
         label: item.department,
+        rawValue: item.department,
+        filterType: 'department' as const,
         ...item
       }));
     } else {
       return aggregated.byType.map(item => ({
         label: DEVICE_TYPE_LABELS[item.deviceType as keyof typeof DEVICE_TYPE_LABELS] || item.deviceType,
+        rawValue: item.deviceType,
+        filterType: 'type' as const,
         ...item
       }));
     }
@@ -223,8 +253,9 @@ const CostTrend = () => {
               </div>
               
               <div className="glass-card p-5 flex-1">
-                <h3 className="title-section">
-                  {viewMode === 'month' ? '月度' : viewMode === 'department' ? '部门' : '类别'}费用明细
+                <h3 className="title-section flex items-center justify-between">
+                  <span>{viewMode === 'month' ? '月度' : viewMode === 'department' ? '部门' : '类别'}费用明细</span>
+                  <span className="text-[10px] text-white/40 font-normal">点击查看明细</span>
                 </h3>
                 <div className="space-y-3 mt-4 max-h-[280px] overflow-y-auto pr-2">
                   {[...detailList].reverse().map((record, index) => (
@@ -233,14 +264,16 @@ const CostTrend = () => {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05 }}
-                      className="p-3 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors"
+                      className="p-3 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 hover:border-accent-secondary/30 cursor-pointer transition-all group"
+                      onClick={() => handleDrillDown(record.filterType, record.rawValue)}
                     >
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-white/80 truncate">
+                        <span className="text-sm font-medium text-white/80 truncate group-hover:text-white transition-colors">
                           {record.label}
                         </span>
-                        <span className="font-display font-bold text-accent-primary flex-shrink-0">
+                        <span className="font-display font-bold text-accent-primary flex-shrink-0 flex items-center gap-1">
                           {formatCurrency(record.total)}
+                          <ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </span>
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-xs">
@@ -271,6 +304,13 @@ const CostTrend = () => {
           </div>
         )}
       </div>
+
+      <CostDrillDownModal
+        isOpen={drillDown.isOpen}
+        onClose={closeDrillDown}
+        filterType={drillDown.filterType}
+        filterValue={drillDown.filterValue}
+      />
     </motion.div>
   );
 };
